@@ -1,0 +1,610 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Third Set Picker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: inputs on the left, verdict and numbers on the right, ranked slate underneath. Court-blue palette with a ball-yellow marker for the pick. */
+:root {
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --ink: #10202e;
+  --muted: #566878;
+  --line: #d3dce5;
+  --accent: #1c5db0;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2ecf8;
+  --good: #17794a;
+  --good-soft: #dcf2e6;
+  --warn: #a85a00;
+  --warn-soft: #fbead3;
+  --ball: #d6e03a;
+  --ball-ink: #2a3100;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1822;
+    --surface: #15222e;
+    --ink: #e8eef4;
+    --muted: #93a5b5;
+    --line: #263646;
+    --accent: #6aa6ee;
+    --accent-ink: #08121c;
+    --accent-soft: #1a2f47;
+    --good: #4fcf8c;
+    --good-soft: #13362a;
+    --warn: #f0a64a;
+    --warn-soft: #3a2a12;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1822;
+  --surface: #15222e;
+  --ink: #e8eef4;
+  --muted: #93a5b5;
+  --line: #263646;
+  --accent: #6aa6ee;
+  --accent-ink: #08121c;
+  --accent-soft: #1a2f47;
+  --good: #4fcf8c;
+  --good-soft: #13362a;
+  --warn: #f0a64a;
+  --warn-soft: #3a2a12;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.45;
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+h2 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; min-width: 0; }
+.stack { display: flex; flex-direction: column; gap: 22px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field > label, .lbl { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+input[type="number"], input[type="text"], select {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-variant-numeric: tabular-nums;
+}
+input:focus-visible, select:focus-visible, button:focus-visible, input[type="range"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg label { flex: 1; position: relative; }
+.seg input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+.seg span { display: block; padding: 8px 10px; text-align: center; font-weight: 500; background: var(--surface); color: var(--muted); }
+.seg label + label span { border-left: 1px solid var(--line); }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.seg input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: -3px; }
+.hint { font-size: 0.8rem; color: var(--muted); margin: 0; }
+
+.players { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr) minmax(0, 1fr); gap: 8px 10px; align-items: center; }
+.players .colhead { font-family: var(--display); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.9rem; color: var(--muted); }
+.players .rowlbl { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.range-row { display: flex; align-items: center; gap: 12px; }
+.range-row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); }
+.range-row output { min-width: 9.5rem; text-align: right; font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.btn {
+  font: inherit; font-weight: 600; cursor: pointer;
+  border-radius: 6px; padding: 10px 16px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+}
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.small { padding: 4px 10px; font-size: 0.85rem; }
+
+.verdict { border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px; background: var(--bg); border: 1px solid var(--line); }
+.verdict[data-pick="over"] { background: var(--good-soft); border-color: var(--good); }
+.verdict[data-pick="under"] { background: var(--accent-soft); border-color: var(--accent); }
+.verdict .eyebrow {
+  align-self: flex-start;
+  font-family: var(--display); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.85rem;
+  padding: 1px 8px; border-radius: 3px; background: var(--line); color: var(--muted);
+}
+.verdict[data-pick="over"] .eyebrow, .verdict[data-pick="under"] .eyebrow { background: var(--ball); color: var(--ball-ink); }
+.verdict strong { font-family: var(--display); font-weight: 700; text-transform: uppercase; font-size: clamp(2rem, 7vw, 2.9rem); line-height: 1; letter-spacing: 0.02em; }
+.verdict .sub { color: var(--muted); font-size: 0.92rem; }
+.verdict[data-pick="over"] strong { color: var(--good); }
+.verdict[data-pick="under"] strong { color: var(--accent); }
+
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { font-family: var(--display); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 0.9rem; color: var(--muted); }
+td.picked, th.picked { background: var(--accent-soft); }
+tbody th { font-weight: 500; color: var(--muted); }
+td.pos { color: var(--good); font-weight: 600; }
+td.neg { color: var(--warn); }
+
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.barrow { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) 3.6rem; gap: 10px; align-items: center; font-size: 0.9rem; }
+.barrow .track { height: 12px; background: var(--bg); border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.barrow .fill { height: 100%; background: var(--muted); }
+.barrow .fill.model { background: var(--accent); }
+.barrow .fill.over { background: var(--accent); }
+.barrow .val { text-align: right; font-variant-numeric: tabular-nums; }
+.barrow .name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dist .barrow { grid-template-columns: 8rem minmax(0, 1fr) 3.6rem; }
+
+dl.facts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; margin: 0; font-size: 0.92rem; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+.err { margin: 0; padding: 12px 14px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); }
+
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.pill.over { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+.pill.under { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.tag { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; margin-left: 6px; }
+.slate-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.slate-head h2 { margin: 0; }
+.actions { display: flex; gap: 6px; justify-content: flex-end; }
+.fine { margin: 0; font-size: 0.82rem; color: var(--muted); max-width: 80ch; }
+@media (prefers-reduced-motion: no-preference) {
+  .barrow .fill { transition: width 0.25s ease; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Third Set Picker</h1>
+    <p class="lede">Estimates the chance a tennis match goes past the sets line, compares it with the bookmaker's over and under prices, and only calls a pick when the price is better than the estimate.</p>
+  </header>
+
+  <main class="grid">
+    <section class="panel stack" aria-label="Match inputs">
+      <div class="field">
+        <label for="market">Market</label>
+        <select id="market">
+          <option value="3|2.5">Over / under 2.5 sets (best of 3)</option>
+          <option value="5|3.5">Over / under 3.5 sets (best of 5)</option>
+          <option value="5|4.5">Over / under 4.5 sets (best of 5)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <span class="lbl" id="surfLbl">Surface</span>
+        <div class="seg" role="radiogroup" aria-labelledby="surfLbl">
+          <label><input type="radio" name="surface" value="clay"><span>Clay</span></label>
+          <label><input type="radio" name="surface" value="hard" checked><span>Hard</span></label>
+          <label><input type="radio" name="surface" value="grass"><span>Grass</span></label>
+        </div>
+        <p class="hint">Shifts both players' serve points won: clay −2 points, grass +1.5.</p>
+      </div>
+
+      <div>
+        <h2>Players</h2>
+        <div class="players">
+          <span></span>
+          <span class="colhead">Player A</span>
+          <span class="colhead">Player B</span>
+
+          <label class="rowlbl" for="nameA">Name</label>
+          <input type="text" id="nameA" value="Player A" autocomplete="off">
+          <input type="text" id="nameB" value="Player B" autocomplete="off">
+
+          <label class="rowlbl" for="oddsA">Match odds</label>
+          <input type="number" id="oddsA" value="1.80" min="1.01" step="0.01" inputmode="decimal">
+          <input type="number" id="oddsB" value="2.00" min="1.01" step="0.01" inputmode="decimal">
+
+          <label class="rowlbl" for="servA">Serve pts won %</label>
+          <input type="number" id="servA" value="66" min="40" max="85" step="0.1" inputmode="decimal">
+          <input type="number" id="servB" value="63" min="40" max="85" step="0.1" inputmode="decimal">
+        </div>
+        <p class="hint" style="margin-top:8px">Match odds are decimal odds for each player to win. Serve points won is each player's recent share of service points won, for example from the last 10 to 20 matches on this surface.</p>
+      </div>
+
+      <div>
+        <h2>Sets market prices</h2>
+        <div class="pair">
+          <div class="field">
+            <label for="overOdds">Over odds</label>
+            <input type="number" id="overOdds" value="1.85" min="1.01" step="0.01" inputmode="decimal">
+          </div>
+          <div class="field">
+            <label for="underOdds">Under odds</label>
+            <input type="number" id="underOdds" value="1.95" min="1.01" step="0.01" inputmode="decimal">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="wt">How much to trust serve stats</label>
+        <div class="range-row">
+          <input type="range" id="wt" min="0" max="100" step="5" value="50">
+          <output id="wtOut" for="wt"></output>
+        </div>
+        <p class="hint">The rest comes from the match odds, which already hold the market's view on form, injuries and head-to-head.</p>
+      </div>
+
+      <div class="field">
+        <label for="minEv">Smallest value worth a bet</label>
+        <select id="minEv">
+          <option value="0.02">2% expected return</option>
+          <option value="0.04" selected>4% expected return</option>
+          <option value="0.07">7% expected return</option>
+          <option value="0.10">10% expected return</option>
+        </select>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap">
+        <button type="button" class="btn" id="addBtn">Add to slate</button>
+      </div>
+    </section>
+
+    <section class="panel stack" id="result" aria-live="polite" aria-label="Pick">
+      <p class="err" id="err" hidden>Enter decimal odds above 1.00 in all four price fields, and serve points won between 40 and 85.</p>
+      <div class="stack" id="out">
+        <div class="verdict" id="verdict" data-pick="none">
+          <span class="eyebrow" id="vEyebrow">Pick</span>
+          <strong id="vText">No bet</strong>
+          <span class="sub" id="vSub"></span>
+        </div>
+
+        <div class="bars" id="probBars">
+          <h2 id="barsTitle" style="margin-bottom:4px">Chance of over</h2>
+          <div class="barrow"><span class="name">Our model</span><div class="track"><div class="fill model" id="barModel"></div></div><span class="val" id="valModel"></span></div>
+          <div class="barrow"><span class="name">Market</span><div class="track"><div class="fill" id="barMkt"></div></div><span class="val" id="valMkt"></span></div>
+        </div>
+
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th></th><th id="thOver">Over</th><th id="thUnder">Under</th></tr></thead>
+            <tbody id="cmpBody"></tbody>
+          </table>
+        </div>
+
+        <div>
+          <h2>How the estimate was built</h2>
+          <dl class="facts" id="facts"></dl>
+        </div>
+
+        <div class="dist">
+          <h2>Likely final scores</h2>
+          <div class="bars" id="dist"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="panel" aria-label="Slate">
+    <div class="slate-head">
+      <h2>Slate, best value first</h2>
+    </div>
+    <p class="hint" style="margin-bottom:10px">Add each match you are looking at and compare them side by side. Rows tagged Example are sample matches, remove them when you add your own. The slate is saved in this browser only.</p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Match</th><th>Market</th><th>Model over</th><th>Market over</th><th>Best value</th><th>Pick</th><th></th></tr>
+        </thead>
+        <tbody id="slateBody"></tbody>
+      </table>
+    </div>
+    <p class="hint" id="slateEmpty" hidden style="margin-top:10px">Nothing on the slate yet. Fill in a match and press Add to slate.</p>
+  </section>
+
+  <p class="fine">This is a probability model, not a guarantee. Bookmaker prices already include a margin, sets within a match are not fully independent, and most matches will correctly come out as No bet. Betting is for adults only. Stake only what you can afford to lose.</p>
+</div>
+
+<script>
+/*MATH*/
+function comb(n, k) { var r = 1; for (var i = 1; i <= k; i++) r = r * (n - k + i) / i; return r; }
+function gameWin(p) {
+  var q = 1 - p;
+  return Math.pow(p, 4) * (1 + 4 * q + 10 * q * q) + 20 * Math.pow(p, 3) * Math.pow(q, 3) * (p * p / (1 - 2 * p * q));
+}
+function tiebreakWin(pt) {
+  var q = 1 - pt, s = 0;
+  for (var k = 0; k <= 5; k++) s += comb(6 + k, k) * Math.pow(pt, 7) * Math.pow(q, k);
+  s += comb(12, 6) * Math.pow(pt, 6) * Math.pow(q, 6) * (pt * pt / (pt * pt + q * q));
+  return s;
+}
+function setWin(pA, pB) {
+  var hA = gameWin(pA), hB = gameWin(pB);
+  var tb = tiebreakWin((pA + (1 - pB)) / 2);
+  var memo = {};
+  function f(a, b, aServes) {
+    if (a >= 6 && a - b >= 2) return 1;
+    if (b >= 6 && b - a >= 2) return 0;
+    if (a === 6 && b === 6) return tb;
+    var key = (a * 10 + b) * 2 + (aServes ? 1 : 0);
+    if (memo[key] !== undefined) return memo[key];
+    var v;
+    if (aServes) v = hA * f(a + 1, b, false) + (1 - hA) * f(a, b + 1, false);
+    else v = (1 - hB) * f(a + 1, b, true) + hB * f(a, b + 1, true);
+    memo[key] = v;
+    return v;
+  }
+  return 0.5 * (f(0, 0, true) + f(0, 0, false));
+}
+function matchProb(p, n) {
+  return n === 3 ? p * p * (3 - 2 * p) : Math.pow(p, 3) * (10 - 15 * p + 6 * p * p);
+}
+function invertMatch(m, n) {
+  var lo = 0.0001, hi = 0.9999;
+  for (var i = 0; i < 60; i++) {
+    var mid = (lo + hi) / 2;
+    if (matchProb(mid, n) < m) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+function overProb(p, n, line) {
+  var q = 1 - p;
+  if (n === 3) return 2 * p * q;
+  if (line === 3.5) return 1 - (Math.pow(p, 3) + Math.pow(q, 3));
+  return 6 * p * p * q * q;
+}
+function scorelines(p, n) {
+  var q = 1 - p;
+  if (n === 3) return [
+    { w: 'A', a: 2, b: 0, pr: p * p }, { w: 'A', a: 2, b: 1, pr: 2 * p * p * q },
+    { w: 'B', a: 1, b: 2, pr: 2 * q * q * p }, { w: 'B', a: 0, b: 2, pr: q * q }
+  ];
+  return [
+    { w: 'A', a: 3, b: 0, pr: Math.pow(p, 3) }, { w: 'A', a: 3, b: 1, pr: 3 * Math.pow(p, 3) * q },
+    { w: 'A', a: 3, b: 2, pr: 6 * Math.pow(p, 3) * q * q },
+    { w: 'B', a: 2, b: 3, pr: 6 * Math.pow(q, 3) * p * p }, { w: 'B', a: 1, b: 3, pr: 3 * Math.pow(q, 3) * p },
+    { w: 'B', a: 0, b: 3, pr: Math.pow(q, 3) }
+  ];
+}
+/*ENDMATH*/
+
+function compute(o) {
+  var parts = o.market.split('|'), n = +parts[0], line = +parts[1];
+  var bad = [o.oddsA, o.oddsB, o.overOdds, o.underOdds].some(function (x) { return !(x > 1.0); }) ||
+    [o.servA, o.servB].some(function (x) { return !(x >= 40 && x <= 85); });
+  if (bad) return { error: true };
+  var shift = { clay: -0.02, hard: 0, grass: 0.015 }[o.surface] || 0;
+  var clamp = function (x) { return Math.min(0.85, Math.max(0.4, x)); };
+  var sA = clamp(o.servA / 100 + shift), sB = clamp(o.servB / 100 + shift);
+  var mkt = (1 / o.oddsA) / ((1 / o.oddsA) + (1 / o.oddsB));
+  var pOdds = invertMatch(mkt, n);
+  var pServe = setWin(sA, sB);
+  var w = o.weight / 100;
+  var p = w * pServe + (1 - w) * pOdds;
+  var pOver = overProb(p, n, line);
+  var qO = (1 / o.overOdds) / ((1 / o.overOdds) + (1 / o.underOdds));
+  var over = { model: pOver, market: qO, edge: pOver - qO, ev: pOver * o.overOdds - 1, fair: 1 / pOver, odds: o.overOdds };
+  var under = { model: 1 - pOver, market: 1 - qO, edge: (1 - pOver) - (1 - qO), ev: (1 - pOver) * o.underOdds - 1, fair: 1 / (1 - pOver), odds: o.underOdds };
+  var side = over.ev >= under.ev ? 'over' : 'under';
+  var best = side === 'over' ? over : under;
+  var pick = (best.ev > 0 && best.ev >= o.minEv) ? side : null;
+  var b = best.odds - 1;
+  var kelly = Math.max(0, (b * best.model - (1 - best.model)) / b) / 4;
+  return {
+    n: n, line: line, over: over, under: under, side: side, best: best, pick: pick, kelly: kelly,
+    p: p, pOdds: pOdds, pServe: pServe, mktMatch: mkt, matchBlend: matchProb(p, n), matchServe: matchProb(pServe, n),
+    lines: scorelines(p, n)
+  };
+}
+
+var $ = function (id) { return document.getElementById(id); };
+var pct = function (x, d) { return (x * 100).toFixed(d === undefined ? 1 : d) + '%'; };
+var signed = function (x, d) { return (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(d === undefined ? 1 : d) + '%'; };
+
+function readInputs() {
+  var s = document.querySelector('input[name="surface"]:checked');
+  return {
+    market: $('market').value, surface: s ? s.value : 'hard',
+    nameA: $('nameA').value.trim() || 'Player A', nameB: $('nameB').value.trim() || 'Player B',
+    oddsA: +$('oddsA').value, oddsB: +$('oddsB').value,
+    servA: +$('servA').value, servB: +$('servB').value,
+    overOdds: +$('overOdds').value, underOdds: +$('underOdds').value,
+    weight: +$('wt').value, minEv: +$('minEv').value
+  };
+}
+function writeInputs(o) {
+  $('market').value = o.market;
+  var r = document.querySelector('input[name="surface"][value="' + o.surface + '"]');
+  if (r) r.checked = true;
+  $('nameA').value = o.nameA; $('nameB').value = o.nameB;
+  $('oddsA').value = o.oddsA; $('oddsB').value = o.oddsB;
+  $('servA').value = o.servA; $('servB').value = o.servB;
+  $('overOdds').value = o.overOdds; $('underOdds').value = o.underOdds;
+  $('wt').value = o.weight; $('minEv').value = String(o.minEv);
+}
+function el(tag, cls, text) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function renderResult(o, c) {
+  $('err').hidden = !c.error;
+  $('out').hidden = !!c.error;
+  $('wtOut').textContent = o.weight + '% serve stats, ' + (100 - o.weight) + '% market';
+  if (c.error) return;
+  var lineTxt = c.line.toFixed(1);
+  var v = $('verdict');
+  v.dataset.pick = c.pick || 'none';
+  if (c.pick) {
+    $('vEyebrow').textContent = 'Pick';
+    $('vText').textContent = (c.pick === 'over' ? 'Over ' : 'Under ') + lineTxt + ' sets';
+    $('vSub').textContent = 'Expected return ' + signed(c.best.ev) + ' at odds ' + c.best.odds.toFixed(2) +
+      '. Suggested stake ' + pct(c.kelly, 1) + ' of bankroll (quarter Kelly).';
+  } else {
+    $('vEyebrow').textContent = 'Verdict';
+    $('vText').textContent = 'No bet';
+    $('vSub').textContent = 'Neither side beats the ' + pct(o.minEv, 0) + ' value threshold. Best available is ' +
+      (c.side === 'over' ? 'over' : 'under') + ' at ' + signed(c.best.ev) + '.';
+  }
+  $('barsTitle').textContent = 'Chance of over ' + lineTxt + ' sets';
+  $('barModel').style.width = (c.over.model * 100) + '%';
+  $('barMkt').style.width = (c.over.market * 100) + '%';
+  $('valModel').textContent = pct(c.over.model);
+  $('valMkt').textContent = pct(c.over.market);
+
+  $('thOver').textContent = 'Over ' + lineTxt;
+  $('thUnder').textContent = 'Under ' + lineTxt;
+  $('thOver').className = c.pick === 'over' ? 'picked' : '';
+  $('thUnder').className = c.pick === 'under' ? 'picked' : '';
+  var rows = [
+    ['Model chance', function (s) { return pct(s.model); }, null],
+    ['Market chance, margin removed', function (s) { return pct(s.market); }, null],
+    ['Edge', function (s) { return signed(s.edge); }, 'edge'],
+    ['Expected return', function (s) { return signed(s.ev); }, 'ev'],
+    ['Fair odds', function (s) { return s.fair.toFixed(2); }, null],
+    ['Bookmaker odds', function (s) { return s.odds.toFixed(2); }, null]
+  ];
+  var body = $('cmpBody');
+  body.textContent = '';
+  rows.forEach(function (r) {
+    var tr = el('tr');
+    tr.appendChild(el('th', '', r[0])).scope = 'row';
+    ['over', 'under'].forEach(function (k) {
+      var s = c[k];
+      var cls = c.pick === k ? 'picked' : '';
+      if (r[2]) cls += (s[r[2]] > 0 ? ' pos' : ' neg');
+      tr.appendChild(el('td', cls.trim(), r[1](s)));
+    });
+    body.appendChild(tr);
+  });
+
+  var facts = $('facts');
+  facts.textContent = '';
+  var add = function (k, val) { facts.appendChild(el('dt', '', k)); facts.appendChild(el('dd', '', val)); };
+  add(o.nameA + ' wins a set, from match odds', pct(c.pOdds));
+  add(o.nameA + ' wins a set, from serve stats', pct(c.pServe));
+  add(o.nameA + ' wins a set, blended', pct(c.p));
+  add(o.nameA + ' wins the match, market', pct(c.mktMatch));
+  add(o.nameA + ' wins the match, blended', pct(c.matchBlend));
+
+  var dist = $('dist');
+  dist.textContent = '';
+  c.lines.forEach(function (s) {
+    var winner = s.w === 'A' ? o.nameA : o.nameB;
+    var isOver = (s.a + s.b) > c.line;
+    var row = el('div', 'barrow');
+    row.appendChild(el('span', 'name', winner + ' ' + Math.max(s.a, s.b) + '-' + Math.min(s.a, s.b)));
+    var track = el('div', 'track');
+    var fill = el('div', 'fill' + (isOver ? ' over' : ''));
+    fill.style.width = (s.pr * 100) + '%';
+    track.appendChild(fill);
+    row.appendChild(track);
+    row.appendChild(el('span', 'val', pct(s.pr)));
+    dist.appendChild(row);
+  });
+  dist.appendChild(el('p', 'hint', 'Blue bars are the scores that land on the over side of the line.'));
+}
+
+/* Slate */
+var KEY = 'thirdset-slate-v1';
+function seedRows() {
+  var base = { market: '3|2.5', nameA: 'Player A', nameB: 'Player B', weight: 50, minEv: 0.04 };
+  var mk = function (label, extra) {
+    var inp = {}; for (var k in base) inp[k] = base[k]; for (var j in extra) inp[j] = extra[j];
+    return { id: 'ex-' + label, ex: true, label: label, inputs: inp };
+  };
+  return [
+    mk('Even match on clay', { surface: 'clay', oddsA: 1.95, oddsB: 1.85, servA: 63, servB: 62.5, overOdds: 1.8, underOdds: 2.0 }),
+    mk('Heavy favourite on hard', { surface: 'hard', oddsA: 1.25, oddsB: 4.0, servA: 69, servB: 62, overOdds: 2.3, underOdds: 1.6 }),
+    mk('Two big servers on grass', { surface: 'grass', oddsA: 1.9, oddsB: 1.9, servA: 72, servB: 71, overOdds: 1.6, underOdds: 2.3 })
+  ];
+}
+function loadSlate() {
+  var raw = null;
+  try { raw = localStorage.getItem(KEY); } catch (e) {}
+  if (raw) { try { var v = JSON.parse(raw); if (Array.isArray(v)) return v; } catch (e) {} }
+  return seedRows();
+}
+var slate = loadSlate();
+function saveSlate() { try { localStorage.setItem(KEY, JSON.stringify(slate)); } catch (e) {} }
+
+function renderSlate() {
+  var body = $('slateBody');
+  body.textContent = '';
+  var rows = slate.map(function (r) { return { r: r, c: compute(r.inputs) }; }).filter(function (x) { return !x.c.error; });
+  rows.sort(function (a, b) { return b.c.best.ev - a.c.best.ev; });
+  $('slateEmpty').hidden = rows.length > 0;
+  rows.forEach(function (x) {
+    var r = x.r, c = x.c, tr = el('tr');
+    var td = el('td');
+    td.appendChild(document.createTextNode(r.label || (r.inputs.nameA + ' v ' + r.inputs.nameB)));
+    if (r.ex) td.appendChild(el('span', 'tag', 'Example'));
+    tr.appendChild(td);
+    tr.appendChild(el('td', '', 'Over ' + c.line.toFixed(1)));
+    tr.appendChild(el('td', '', pct(c.over.model)));
+    tr.appendChild(el('td', '', pct(c.over.market)));
+    tr.appendChild(el('td', c.best.ev > 0 ? 'pos' : 'neg', (c.side === 'over' ? 'Over ' : 'Under ') + signed(c.best.ev)));
+    var pt = el('td');
+    pt.appendChild(el('span', 'pill' + (c.pick ? ' ' + c.pick : ''), c.pick ? ((c.pick === 'over' ? 'Over ' : 'Under ') + c.line.toFixed(1)) : 'No bet'));
+    tr.appendChild(pt);
+    var act = el('td');
+    var box = el('div', 'actions');
+    var load = el('button', 'btn ghost small', 'Load'); load.type = 'button';
+    load.addEventListener('click', function () { writeInputs(r.inputs); update(); window.scrollTo(0, 0); });
+    var del = el('button', 'btn ghost small', 'Remove'); del.type = 'button';
+    del.addEventListener('click', function () {
+      slate = slate.filter(function (s) { return s.id !== r.id; });
+      saveSlate(); renderSlate();
+    });
+    box.appendChild(load); box.appendChild(del); act.appendChild(box); tr.appendChild(act);
+    body.appendChild(tr);
+  });
+}
+
+function update() {
+  var o = readInputs();
+  renderResult(o, compute(o));
+}
+
+['market', 'nameA', 'nameB', 'oddsA', 'oddsB', 'servA', 'servB', 'overOdds', 'underOdds', 'wt', 'minEv'].forEach(function (id) {
+  $(id).addEventListener('input', update);
+  $(id).addEventListener('change', update);
+});
+document.querySelectorAll('input[name="surface"]').forEach(function (r) { r.addEventListener('change', update); });
+
+$('addBtn').addEventListener('click', function () {
+  var o = readInputs();
+  if (compute(o).error) return;
+  slate.unshift({ id: 'm-' + Date.now() + '-' + Math.floor(Math.random() * 1000), inputs: o });
+  saveSlate(); renderSlate();
+});
+
+update();
+renderSlate();
+</script>
+
+</body></html>
